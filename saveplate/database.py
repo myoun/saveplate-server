@@ -51,7 +51,7 @@ def transactional[**P, R](function: Callable[Concatenate[ManagedTransaction, P],
 
     wrapper.__signature__ = inspect.Signature(
         parameters=function_parameters,
-        return_annotation=None
+        return_annotation=wrapper.__annotations__["return"]
     )
     
 
