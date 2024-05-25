@@ -2,6 +2,7 @@ from neo4j import GraphDatabase, Driver, ManagedTransaction
 from typing import Optional, Callable, Concatenate
 from contextlib import contextmanager
 import inspect
+from functools import wraps
 
 __driver: Optional[Driver] = None
 
@@ -27,7 +28,6 @@ def useSession(driver:Driver=None, database:str="neo4j"):
         yield session
 
 def transactional[**P, R](function: Callable[Concatenate[ManagedTransaction, P], R]) -> Callable[P, R]:
-    global __driver
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         return_value: R
         with useSession() as session:
@@ -44,15 +44,15 @@ def transactional[**P, R](function: Callable[Concatenate[ManagedTransaction, P],
     wrapper.__annotations__ = function.__annotations__
     wrapper.__name__ = function.__name__
 
+    original_signature = inspect.signature(function)
     function_parameters = list(map(
-        lambda k: inspect.Parameter(k, inspect.Parameter.POSITIONAL_OR_KEYWORD),
-        filter(lambda k: k != "return", wrapper.__annotations__)
+        lambda p: inspect.Parameter(p.name, p.kind, annotation=p.annotation, default=p.default),
+        list(original_signature.parameters.values())[1:]
     ))
-
     wrapper.__signature__ = inspect.Signature(
         parameters=function_parameters,
-        return_annotation=wrapper.__annotations__["return"]
+        return_annotation=original_signature.return_annotation
     )
-    
+    wrapper.__doc__ = function.__doc__
 
     return wrapper
