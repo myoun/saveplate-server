@@ -4,10 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-fastapi = {extras = ["all"], version = "*"}
-uvicorn = {extras = ["standard"], version = "*"}
+fastapi = {extras = ["all"] }
+uvicorn = {extras = ["standard"] }
 neo4j = "*"
-pydantic = {extras = ["dotenv"], version = "*"}
+pydantic = {extras = ["dotenv"] }
 
 [dev-packages]
 

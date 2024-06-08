@@ -28,7 +28,7 @@ AutoCompletionType = Literal["ingredient"] | Literal["sauce"]
 
 @app.get("/autocompletion")
 @lru_with_ttl(ttl_seconds=10)
-@transactional
+@transactional("read")
 def autocompletion(tx: ManagedTransaction, type: AutoCompletionType, data: str, limit: int=10) -> list[str]:
     """endpoint for autocompletion
 
