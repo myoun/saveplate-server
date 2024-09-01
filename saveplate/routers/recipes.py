@@ -3,13 +3,26 @@ from saveplate.database import ManagedTransaction, transactional
 from saveplate.model import AvailableRecipeRequest
 import logging
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/recipes",
+    tags=["recipes"],
+    responses={404: {"description": "Not found"}},
+)
 
 logger = logging.getLogger(__name__)
 
-@router.post("/recipes/available")
+@router.post("/available")
 @transactional("read")
 def available_recipes(tx: ManagedTransaction, req: AvailableRecipeRequest) -> list[tuple[str, str, float]]:
+    """
+    주어진 재료로 만들 수 있는 레시피를 조회합니다.
+
+    Args:
+        req (AvailableRecipeRequest): 사용 가능한 재료와 소스 목록
+
+    Returns:
+        list[tuple[str, str, float]]: 음식 이름, 레시피 이름, 유사도를 포함한 레시피 목록
+    """
     try:
         result = tx.run("""
         WITH $ingredients as A
