@@ -10,6 +10,5 @@ class IngredientEntry(BaseModel):
     amount: int
 
 class AddUserIngredient(BaseModel):
-    user_email: str
     ingredients: list[IngredientEntry]
 

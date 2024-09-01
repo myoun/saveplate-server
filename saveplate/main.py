@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from saveplate import database
 from pydantic_settings import BaseSettings
-from saveplate.routers import autocompletion, recipes, user
+from saveplate.routers import autocompletion, recipes, user, auth
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -45,6 +45,7 @@ async def add_process_time_header(request: Request, call_next):
 app.include_router(autocompletion.router)
 app.include_router(recipes.router)
 app.include_router(user.router)
+app.include_router(auth.router)
 
 app.add_middleware(
     CORSMiddleware,

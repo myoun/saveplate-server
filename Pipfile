@@ -9,6 +9,8 @@ uvicorn = {extras = ["standard"] }
 neo4j = "*"
 pydantic = {extras = ["dotenv"] }
 gunicorn = "*"
+python-jose = {extras = ["cryptography"], version = "*"}
+passlib = {extras = ["bcrypt"], version = "*"}
 
 [dev-packages]
 
