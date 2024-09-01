@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Union, Literal
+from datetime import date
 
 class AvailableRecipeRequest(BaseModel):
     ingredients: list[str]
@@ -12,3 +12,9 @@ class IngredientEntry(BaseModel):
 class AddUserIngredient(BaseModel):
     ingredients: list[IngredientEntry]
 
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    name: str
+    gender: str | None = None
+    birth_date: date | None = None

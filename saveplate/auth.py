@@ -4,7 +4,7 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
-from saveplate.main import settings
+from saveplate.config import settings
 from saveplate.database import ManagedTransaction, transactional
 from typing import Literal
 from datetime import date
@@ -46,7 +46,10 @@ def get_user(tx: ManagedTransaction, email: str):
     result = tx.run("MATCH (u:User {email: $email}) RETURN u", email=email)
     user = result.single()
     if user:
-        return User(**user["u"])
+        user_data = dict(user["u"])
+        user_data["birth_date"] = user_data["birth_date"].to_native() if user_data["birth_date"] else None
+        user_data["join_date"] = user_data["join_date"].to_native()
+        return User(**user_data)
 
 
 def authenticate_user(email: str, password: str):
@@ -127,3 +130,30 @@ def create_token_pair(email: str):
     refresh_token = create_refresh_token(data={"sub": email})
     save_refresh_token(email, refresh_token)
     return TokenPair(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+
+@transactional("write")
+def create_user(tx: ManagedTransaction, email: str, password: str, name: str, gender: str | None = None, birth_date: date | None = None):
+    hashed_password = get_password_hash(password)
+    join_date = date.today()
+    
+    result = tx.run("""
+    CREATE (u:User {
+        email: $email,
+        hashed_password: $hashed_password,
+        name: $name,
+        gender: $gender,
+        birth_date: $birth_date,
+        join_date: $join_date,
+        disabled: false
+    })
+    RETURN u
+    """, email=email, hashed_password=hashed_password, name=name, gender=gender, birth_date=birth_date, join_date=join_date)
+    
+    user = result.single()
+    if user:
+        user_data = dict(user["u"])
+        user_data["birth_date"] = user_data["birth_date"].to_native() if user_data["birth_date"] else None
+        user_data["join_date"] = user_data["join_date"].to_native()
+        return User(**user_data)
+    else:
+        raise HTTPException(status_code=400, detail="Failed to create user")

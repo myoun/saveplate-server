@@ -4,6 +4,8 @@ from saveplate.model import AddUserIngredient
 from saveplate.auth import get_current_active_user, User
 from typing import List, Dict, Any
 import logging
+from datetime import date
+import neo4j
 
 router = APIRouter(
     prefix="/user",
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/ingredients")
 @transactional("read")
-async def my_ingredients(
+def my_ingredients(
     tx: ManagedTransaction,
     current_user: User = Depends(get_current_active_user)
 ) -> List[Dict[str, Any]]:
@@ -27,17 +29,27 @@ async def my_ingredients(
     """
     try:
         result = tx.run("""
-            MATCH (u:User)-[:HAS]->(i) WHERE u.email=$user_email RETURN i
+            MATCH (u:User)-[r:HAS]->(i) WHERE u.email=$user_email RETURN i, r.amount
         """, user_email=current_user.email)
 
-        return [dict(record["i"]) for record in result]
+        ingredients = []
+        for record in result:
+            ingredient = dict(record["i"])
+            ingredient["amount"] = record["r.amount"]
+            if "birth_date" in ingredient and isinstance(ingredient["birth_date"], neo4j.time.Date):
+                ingredient["birth_date"] = date.fromisoformat(str(ingredient["birth_date"]))
+            if "join_date" in ingredient and isinstance(ingredient["join_date"], neo4j.time.Date):
+                ingredient["join_date"] = date.fromisoformat(str(ingredient["join_date"]))
+            ingredients.append(ingredient)
+
+        return ingredients
     except Exception as e:
         logger.error(f"Error in my_ingredients: {type(e).__name__}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/ingredient")
 @transactional("write")
-async def add_ingredient(
+def add_ingredient(
     tx: ManagedTransaction,
     req: AddUserIngredient,
     current_user: User = Depends(get_current_active_user)
@@ -55,15 +67,29 @@ async def add_ingredient(
         ingredients = req.ingredients
         user_result = tx.run("""
             UNWIND $ingredients AS e
-            MATCH (u:User), (i:Ingredient)
-            WHERE u.email = $user_email AND i.name = e.name
+            MATCH (u:User {email: $user_email})
+            MATCH (i:Ingredient {name: e.name})
             MERGE (u)-[r:HAS]->(i)
             ON CREATE SET r.amount = e.amount
             ON MATCH SET r.amount = r.amount + e.amount
             RETURN u, i, r.amount AS amount
         """, user_email=current_user.email, ingredients=[ing.model_dump() for ing in ingredients])
         
-        return [{"user": dict(record["u"]), "ingredient": dict(record["i"]), "amount": record["amount"]} for record in user_result]
+        result = []
+        for record in user_result:
+            user_data = dict(record["u"])
+            ingredient_data = dict(record["i"])
+            if "birth_date" in user_data and isinstance(user_data["birth_date"], neo4j.time.Date):
+                user_data["birth_date"] = date.fromisoformat(str(user_data["birth_date"]))
+            if "join_date" in user_data and isinstance(user_data["join_date"], neo4j.time.Date):
+                user_data["join_date"] = date.fromisoformat(str(user_data["join_date"]))
+            result.append({
+                "user": user_data,
+                "ingredient": ingredient_data,
+                "amount": record["amount"]
+            })
+
+        return result
     except Exception as e:
         logger.error(f"Error in add_ingredient: {type(e).__name__}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -72,7 +98,7 @@ async def add_ingredient(
 """
 @router.get("/available_recipes")
 @transactional("read")
-async def get_available_recipes(
+def get_available_recipes(
     tx: ManagedTransaction,
     current_user: User = Depends(get_current_active_user)
 ) -> List[Dict[str, Any]]:

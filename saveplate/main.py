@@ -1,20 +1,10 @@
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from saveplate import database
-from pydantic_settings import BaseSettings
 from saveplate.routers import autocompletion, recipes, user, auth
+from saveplate.config import settings
 import logging
 from fastapi.middleware.cors import CORSMiddleware
-
-class Settings(BaseSettings):
-    DB_URL: str
-    DB_USER: str
-    DB_PW: str
-
-    class Config:
-        env_file = '.env'
-
-settings = Settings()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
