@@ -4,6 +4,7 @@ from saveplate import database
 from pydantic_settings import BaseSettings
 from saveplate.routers import autocompletion, recipes, user
 import logging
+from fastapi.middleware.cors import CORSMiddleware
 
 class Settings(BaseSettings):
     DB_URL: str
@@ -44,3 +45,11 @@ async def add_process_time_header(request: Request, call_next):
 app.include_router(autocompletion.router)
 app.include_router(recipes.router)
 app.include_router(user.router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 출처 허용
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP 메서드 허용
+    allow_headers=["*"],  # 모든 헤더 허용
+)
