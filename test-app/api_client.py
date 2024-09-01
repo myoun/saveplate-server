@@ -10,7 +10,7 @@ class APIClient:
 
     def login(self, username, password):
         logger.info("로그인 시도: %s", username)
-        response = requests.post(f"{self.base_url}/token", data={
+        response = requests.post(f"{self.base_url}/auth/token", data={
             "username": username,
             "password": password
         })
@@ -45,7 +45,7 @@ class APIClient:
     def get_available_recipes(self):
         logger.info("가능한 레시피 조회")
         headers = {"Authorization": f"Bearer {self.token}"}
-        response = requests.get(f"{self.base_url}/recipes/available", headers=headers)
+        response = requests.get(f"{self.base_url}/user/recipes", headers=headers)
         if response.status_code == 200:
             logger.info("가능한 레시피 조회 성공")
             return response.json()

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, UTC
 from jose import JWTError, jwt
+import neo4j
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -31,6 +32,7 @@ class User(BaseModel):
     birth_date: date | None = None
     join_date: date
     disabled: bool = False
+    hashed_password: str  # 추가된 속성
 
     class Config:
         from_attributes = True
@@ -47,10 +49,12 @@ def get_user(tx: ManagedTransaction, email: str):
     user = result.single()
     if user:
         user_data = dict(user["u"])
-        user_data["birth_date"] = user_data["birth_date"].to_native() if user_data["birth_date"] else None
-        user_data["join_date"] = user_data["join_date"].to_native()
+        if "birth_date" in user_data and isinstance(user_data["birth_date"], neo4j.time.Date):
+            user_data["birth_date"] = date.fromisoformat(str(user_data["birth_date"]))
+        if "join_date" in user_data and isinstance(user_data["join_date"], neo4j.time.Date):
+            user_data["join_date"] = date.fromisoformat(str(user_data["join_date"]))
         return User(**user_data)
-
+    return None
 
 def authenticate_user(email: str, password: str):
     user = get_user(email)

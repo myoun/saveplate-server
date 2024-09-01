@@ -95,8 +95,7 @@ def add_ingredient(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # 주석 처리된 쿼리는 함수로 구현하지 않았지만, 필요하다면 다음과 같이 구현할 수 있습니다:
-"""
-@router.get("/available_recipes")
+@router.get("/recipes")
 @transactional("read")
 def get_available_recipes(
     tx: ManagedTransaction,
@@ -120,4 +119,3 @@ def get_available_recipes(
     except Exception as e:
         logger.error(f"Error in get_available_recipes: {type(e).__name__}")
         raise HTTPException(status_code=500, detail="Internal server error")
-"""
