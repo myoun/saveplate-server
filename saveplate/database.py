@@ -1,26 +1,40 @@
-from neo4j import GraphDatabase, Driver, ManagedTransaction
-from typing import Optional, Callable, Concatenate, Literal
+from neo4j import GraphDatabase, Driver, ManagedTransaction, Session
+from typing import Optional, Callable, Concatenate, Literal, Generator
 from contextlib import contextmanager
 import inspect
+import logging
+
+logger = logging.getLogger(__name__)
 
 __driver: Optional[Driver] = None
 
 def initialize(url: str, auth: tuple[str, str]) -> Driver:
     global __driver
-    __driver = GraphDatabase.driver(url, auth=auth)
-    __driver.verify_connectivity()
-    return __driver
+    try:
+        __driver = GraphDatabase.driver(url, auth=auth)
+        __driver.verify_connectivity()
+        logger.info("Database driver initialized successfully")
+        return __driver
+    except Exception as e:
+        logger.error(f"Failed to initialize database driver: {str(e)}")
+        raise
 
 def close() -> None:
     global __driver
-    if __driver != None:
-        __driver.close()
+    if __driver is not None:
+        try:
+            __driver.close()
+            logger.info("Database driver closed successfully")
+        except Exception as e:
+            logger.error(f"Error while closing database driver: {str(e)}")
+            raise
     else:
+        logger.warning("Attempted to close uninitialized database driver")
         raise Exception("Driver is not initialized.")
 
 @contextmanager
-def useSession(driver:Driver=None, database:str="neo4j"):
-    if driver == None:
+def useSession(driver: Driver | None = None, database: str = "neo4j") -> Generator[Session, None, None]:
+    if driver is None:
         global __driver
         driver = __driver
     with driver.session(database=database) as session:
