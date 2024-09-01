@@ -1,6 +1,7 @@
 from neo4j import GraphDatabase, Driver, ManagedTransaction, Session
 from typing import Optional, Callable, Concatenate, Literal, Generator
 from contextlib import contextmanager
+from functools import wraps
 import inspect
 import logging
 
@@ -43,68 +44,18 @@ def useSession(driver: Driver | None = None, database: str = "neo4j") -> Generat
 TransactionType = Literal["read"] | Literal["write"]
 
 def transactional(type: TransactionType = "read"):
-    match type:
-        case "read":
-            return transactional_read
-        case "write":
-            return transactional_write
+    def decorator[**P, R](function: Callable[Concatenate[ManagedTransaction, P], R]) -> Callable[P, R]:
+        @wraps(function)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            with useSession() as session:
+                execute_method = session.execute_write if type == "write" else session.execute_read
+                return execute_method(function, *args, **kwargs)
+        
+        wrapper.__annotations__ = {k: v for k, v in function.__annotations__.items() if v != ManagedTransaction}
 
-def transactional_write[**P, R](function: Callable[Concatenate[ManagedTransaction, P], R]) -> Callable[P, R]:
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        return_value: R
-        with useSession() as session:
-            return_value = session.execute_write(function, *args, **kwargs)
-        return return_value
-    modified_function_annotation = function.__annotations__
-    _k = None
-    for (k, v) in modified_function_annotation.items():
-        if v == ManagedTransaction:
-            _k = k
-            break
-    if _k != None:
-        modified_function_annotation.pop(_k)
-    wrapper.__annotations__ = function.__annotations__
-    wrapper.__name__ = function.__name__
+        original_sig = inspect.signature(function)
+        params = list(original_sig.parameters.values())[1:]  # ManagedTransaction 파라미터 제거
+        wrapper.__signature__ = original_sig.replace(parameters=params)
 
-    original_signature = inspect.signature(function)
-    function_parameters = list(map(
-        lambda p: inspect.Parameter(p.name, p.kind, annotation=p.annotation, default=p.default),
-        list(original_signature.parameters.values())[1:]
-    ))
-    wrapper.__signature__ = inspect.Signature(
-        parameters=function_parameters,
-        return_annotation=original_signature.return_annotation
-    )
-    wrapper.__doc__ = function.__doc__
-
-    return wrapper
-
-def transactional_read[**P, R](function: Callable[Concatenate[ManagedTransaction, P], R]) -> Callable[P, R]:
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        return_value: R
-        with useSession() as session:
-            return_value = session.execute_read(function, *args, **kwargs)
-        return return_value
-    modified_function_annotation = function.__annotations__
-    _k = None
-    for (k, v) in modified_function_annotation.items():
-        if v == ManagedTransaction:
-            _k = k
-            break
-    if _k != None:
-        modified_function_annotation.pop(_k)
-    wrapper.__annotations__ = function.__annotations__
-    wrapper.__name__ = function.__name__
-
-    original_signature = inspect.signature(function)
-    function_parameters = list(map(
-        lambda p: inspect.Parameter(p.name, p.kind, annotation=p.annotation, default=p.default),
-        list(original_signature.parameters.values())[1:]
-    ))
-    wrapper.__signature__ = inspect.Signature(
-        parameters=function_parameters,
-        return_annotation=original_signature.return_annotation
-    )
-    wrapper.__doc__ = function.__doc__
-
-    return wrapper
+        return wrapper
+    return decorator
