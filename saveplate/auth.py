@@ -137,6 +137,11 @@ def create_token_pair(email: str):
 
 @transactional("write")
 def create_user(tx: ManagedTransaction, email: str, password: str, name: str, gender: str | None = None, birth_date: date | None = None):
+    # 이메일 중복 확인
+    existing_user = tx.run("MATCH (u:User {email: $email}) RETURN u", email=email).single()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     hashed_password = get_password_hash(password)
     join_date = date.today()
     
